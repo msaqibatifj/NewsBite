@@ -1,0 +1,18 @@
+# Python virtual env
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Env vars
+.env
+
+# VS Code
+.vscode/
+
+# Linux / WSL junk
+*~
+*.swp
