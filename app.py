@@ -9,7 +9,7 @@ from pathlib import Path
 from flask import Flask, render_template, request, url_for, send_file, abort
 from dotenv import load_dotenv
 from tavily import TavilyClient
-import google.generativeai as genai
+from openai import OpenAI
 from elevenlabs.client import ElevenLabs
 
 load_dotenv()
@@ -50,8 +50,8 @@ def get_api_key(name, env_var, allow_prompt=False):
 tavily_key = get_api_key("Tavily", "TAVILY_API_KEY", allow_prompt=ALLOW_PROMPT)
 tavily = TavilyClient(api_key=tavily_key)
 
-gemini_key = get_api_key("Gemini", "GEMINI_API_KEY", allow_prompt=ALLOW_PROMPT)
-genai.configure(api_key=gemini_key)
+openai_key = get_api_key("OpenAI", "OPENAI_API_KEY", allow_prompt=ALLOW_PROMPT)
+openai_client = OpenAI(api_key=openai_key)
 
 eleven_key = get_api_key("ElevenLabs", "ELEVEN_API_KEY", allow_prompt=ALLOW_PROMPT)
 eleven_client = ElevenLabs(api_key=eleven_key)
@@ -109,12 +109,16 @@ def generate_daily_bite(topic: str, persona_prompt: str, time_query: str, time_l
     Note: If you are mentioning numbers, don't add commas.
     """
 
-    model = genai.GenerativeModel("gemini-3-flash-preview")
-    response = model.generate_content(
-        f"{system_prompt}\n\nContext from {time_label}:\n{context}\n\nDraft the script covering the full {time_label} period:"
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Context from {time_label}:\n{context}\n\nDraft the script covering the full {time_label} period:"}
+        ],
+        max_tokens=200,
     )
 
-    script = response.text
+    script = response.choices[0].message.content
 
     # Generate audio and store in memory buffer
     audio_gen = eleven_client.text_to_speech.convert(
