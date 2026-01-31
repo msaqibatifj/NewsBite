@@ -7,7 +7,7 @@ from pathlib import Path
 from flask import Flask, render_template, request, url_for, send_file, abort
 from dotenv import load_dotenv
 from tavily import TavilyClient
-from openai import OpenAI
+import google.generativeai as genai
 from elevenlabs.client import ElevenLabs
 
 load_dotenv()
@@ -29,17 +29,18 @@ def get_api_key(name, env_var):
 # Initialize Clients (lazy initialization for serverless)
 tavily = None
 eleven_client = None
-openai_client = None
+gemini_model = None
 
 
 def init_clients():
-    global tavily, eleven_client, openai_client
+    global tavily, eleven_client, gemini_model
     if tavily is None:
         tavily_key = get_api_key("Tavily", "TAVILY_API_KEY")
         tavily = TavilyClient(api_key=tavily_key)
-    if openai_client is None:
-        openai_key = get_api_key("OpenAI", "OPENAI_API_KEY")
-        openai_client = OpenAI(api_key=openai_key)
+    if gemini_model is None:
+        gemini_key = get_api_key("Gemini", "GEMINI_API_KEY")
+        genai.configure(api_key=gemini_key)
+        gemini_model = genai.GenerativeModel("gemini-1.5-flash")
     if eleven_client is None:
         eleven_key = get_api_key("ElevenLabs", "ELEVEN_API_KEY")
         eleven_client = ElevenLabs(api_key=eleven_key)
@@ -104,16 +105,13 @@ def generate_daily_bite(topic: str, persona_prompt: str, time_query: str, time_l
     Note: If you are mentioning numbers, don't add commas.
     """
 
-    response = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Context from {time_label}:\n{context}\n\nDraft the script covering the full {time_label} period:"}
-        ],
-        max_tokens=200,
+    prompt = f"{system_prompt}\n\nContext from {time_label}:\n{context}\n\nDraft the script covering the full {time_label} period:"
+    response = gemini_model.generate_content(
+        prompt,
+        generation_config=genai.types.GenerationConfig(max_output_tokens=200)
     )
 
-    script = response.choices[0].message.content
+    script = response.text
 
     # Generate audio and store in memory buffer
     audio_gen = eleven_client.text_to_speech.convert(
