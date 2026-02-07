@@ -9,7 +9,7 @@ from pathlib import Path
 from flask import Flask, render_template, request, url_for, send_file, abort
 from dotenv import load_dotenv
 from tavily import TavilyClient
-import google.generativeai as genai
+from groq import Groq
 from elevenlabs.client import ElevenLabs
 
 load_dotenv()
@@ -50,9 +50,8 @@ def get_api_key(name, env_var, allow_prompt=False):
 tavily_key = get_api_key("Tavily", "TAVILY_API_KEY", allow_prompt=ALLOW_PROMPT)
 tavily = TavilyClient(api_key=tavily_key)
 
-gemini_key = get_api_key("Gemini", "GEMINI_API_KEY", allow_prompt=ALLOW_PROMPT)
-genai.configure(api_key=gemini_key)
-gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+groq_key = get_api_key("Groq", "GROQ_API_KEY", allow_prompt=ALLOW_PROMPT)
+groq_client = Groq(api_key=groq_key)
 
 eleven_key = get_api_key("ElevenLabs", "ELEVEN_API_KEY", allow_prompt=ALLOW_PROMPT)
 eleven_client = ElevenLabs(api_key=eleven_key)
@@ -111,12 +110,13 @@ def generate_daily_bite(topic: str, persona_prompt: str, time_query: str, time_l
     """
 
     prompt = f"{system_prompt}\n\nContext from {time_label}:\n{context}\n\nDraft the script covering the full {time_label} period:"
-    response = gemini_model.generate_content(
-        prompt,
-        generation_config=genai.types.GenerationConfig(max_output_tokens=200)
+    response = groq_client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=200
     )
 
-    script = response.text
+    script = response.choices[0].message.content
 
     # Generate audio and store in memory buffer
     audio_gen = eleven_client.text_to_speech.convert(
