@@ -90,3 +90,6 @@ Steps:
 - Persona + time period options live in `PERSONAS` and `TIME_PERIODS` in both [app.py](app.py) and [api/index.py](api/index.py).
 - The Groq model is currently set to `llama-3.3-70b-versatile`.
 - ElevenLabs `voice_id` is hardcoded; change it in the `text_to_speech.convert(...)` call if you want a different voice.
+
+## To Visit Website
+- http://news-bite-nine.vercel.app/
